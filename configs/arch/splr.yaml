@@ -1,0 +1,52 @@
+# SPLR Architecture Configuration
+
+name: splr
+
+# Model architecture
+hidden_size: 1024
+seq_len: 256
+num_attention_heads: 8
+num_key_value_heads: 8
+intermediate_size: 2048
+
+# TRM recursive reasoning
+H_cycles: 3
+L_cycles: 6
+L_layers: 2
+
+# Halting
+halt_max_steps: 16
+halt_exploration_prob: 0.1
+enable_halt_loss: true
+q_halt_weight: 0.05  # Weight for q_halt loss
+
+# Multi-step reasoning
+tool_max_turns: 2
+
+# Task embeddings
+task_emb_len: 16
+task_emb_ndim: 1024
+num_task_identifiers: 5079
+
+# Loss configuration
+loss_type: ce
+tie_word_embeddings: false
+
+# Embedding loading
+load_embedding: Qwen/Qwen3-0.6B
+
+# Attention
+attention_bias: false
+attention_dropout: 0.0
+
+# Position encoding
+rope_theta: 10000.0
+
+# Normalization
+rms_norm_eps: 1.0e-6
+
+# Forward dtype
+forward_dtype: bfloat16
+
+# ACT options
+no_ACT_continue: true

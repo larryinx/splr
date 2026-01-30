@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "splr"
+dynamic = ["version"]
+description = "The SPLR project."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "larryinx" }]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "accelerate>=1.12.0",
+    "datasets>=4.4.1",
+    "einops>=0.8.1",
+    "hydra-core>=1.3.2",
+    "jinja2>=3.1.6",
+    "ninja>=1.13.0",
+    "pydantic-core>=2.41.5",
+    "pyyaml>=6.0.3",
+    "setuptools>=80.9.0",
+    "torch>=2.9.1",
+    "torchinfo>=1.8.0",
+    "tqdm>=4.67.1",
+    "transformers==4.57.0",
+    "wandb>=0.23.0",
+]
+
+[project.optional-dependencies]
+dev = ["hatch", "pytest>=6", "pytest-cov", "coverage[toml]", "black", "ruff"]
+
+[project.urls]
+Source = "https://github.com/larryinx/splr"
+Issues = "https://github.com/larryinx/splr/issues"
+
+[tool.hatch.version]
+path = "src/splr/__about__.py"
+
+# testing (pytest) and coverage (coverage, pytest-cov)
+[tool.coverage.run]
+source_pkgs = ["splr", "tests"]
+branch = true
+parallel = true
+omit = ["src/splr/__about__.py"]
+
+[tool.coverage.paths]
+splr = ["src/splr", "*/splr/src/splr"]
+tests = ["tests", "*/splr/tests"]
+
+[tool.coverage.report]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+[tool.pytest.ini_options]
+addopts = "--ignore=deprecated --cov --cov-report xml:cov.xml"
+testpaths = ["tests"]
+
+# linting (ruff)
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+select = [
+    "E", # pycodestyle error
+    "F", # pyflakes
+    "I", # isort
+]
+
+[tool.ruff.isort]
+known-first-party = ["splr"]
+
+[dependency-groups]
+dev = [
+    "black",
+    "coverage[toml]",
+    "hatch",
+    "openai>=2.8.1",
+    "pytest-cov",
+    "pytest>=6",
+    "ruff",
+    "tiktoken>=0.12.0",
+    "word2number>=1.1",
+]

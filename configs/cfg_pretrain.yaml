@@ -1,0 +1,71 @@
+# TRLM Multi-GPU Training Configuration
+
+defaults:
+  - arch: splr
+  - _self_
+
+hydra:
+  output_subdir: null
+
+# Data paths
+dataset_name: gsm8k
+# train_file and eval_file can be a single file path (string) or a list of file paths
+train_file:
+  - ./data/input/gsm8k/multi_normal/train.json
+eval_file:
+  - ./data/input/gsm8k/multi_normal/valid.json
+
+# Tokenizer path
+tokenizer_path: <path to the tokenizer>
+
+# DataLoader workers
+number_of_workers: 16
+
+# Training hyperparameters
+global_batch_size: 96
+num_epochs: 20000
+
+# Optimizer
+optimizer: AdamATan2
+freeze_weights: false
+lr: 5.0e-5
+lr_min_ratio: 1.0
+lr_warmup_steps: 4000
+beta1: 0.9
+beta2: 0.95
+weight_decay: 0.1
+
+task_emb_lr: 1e-2
+
+# Training options
+grad_clip_norm: 1.0
+
+# EMA (Exponential Moving Average)
+ema: true
+ema_rate: 0.999
+save_ema: true  # Save EMA state in checkpoint file
+load_checkpoint_from_ema: false  # Load from EMA state when resuming
+
+# Log / save every n steps
+log_interval: 5
+save_interval: 2000
+# Evaluate every n epochs (if enable_halt_loss is False, the true eval_interval is eval_interval * halt_max_steps)
+eval_interval: 2
+checkpoint_every_eval: false
+
+# Distributed training
+use_ddp: true
+local_rank: -1
+
+# Output
+output_dir: <path to the output directory>
+
+# Checkpoint loading
+load_checkpoint: null
+
+# Wandb
+project_name: <wandb project name>
+run_name: <wandb run name>
+
+# Misc
+seed: 0
