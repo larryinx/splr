@@ -55,7 +55,7 @@ load_checkpoint_from_ema: false  # Load from EMA state when resuming
 log_interval: 5
 save_interval: 4000
 # Validation (loss-based) every N steps
-val_interval: 2000
+val_interval: 4000
 # Benchmark evaluation (accuracy-based) every N steps
 eval_interval: 4000
 checkpoint_every_eval: false

@@ -3,7 +3,7 @@ enable_halt: true
 halt_max_steps: 16
 max_reasoning_steps: 2
 eval_mode: think
-batch_size: 512
+batch_size: 256
 eval_datasets:
   - ./datasets/gsm8k.json
   - ./datasets/gsm-hard.json

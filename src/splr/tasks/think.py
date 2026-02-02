@@ -126,30 +126,34 @@ def postprocess_think_output(
     think_close_id = tokenizer.encode("</think>", add_special_tokens=False)[0]
 
     for i in range(batch_size):
-        input_len = input_lengths[i]
-        output_tokens = output_ids[i, input_len:]
+        try:
+            input_len = input_lengths[i]
+            output_tokens = output_ids[i, input_len:]
 
-        has_eos = False
-        if output_tokens[0] == eos_token_id:
-            has_eos = True
+            has_eos = False
+            if output_tokens[0] == eos_token_id:
+                has_eos = True
 
-        think_start_idx = None
-        think_end_idx = None
-        for j, token in enumerate(output_tokens):
-            if token == think_open_id:
-                think_start_idx = j
-            elif token == think_close_id:
-                think_end_idx = j
-                break
+            think_start_idx = None
+            think_end_idx = None
+            for j, token in enumerate(output_tokens):
+                if token == think_open_id:
+                    think_start_idx = j
+                elif token == think_close_id:
+                    think_end_idx = j
+                    break
 
-        if think_start_idx is None or think_end_idx is None:
-            results.append((None, None, has_eos))
-            continue
+            if think_start_idx is None or think_end_idx is None:
+                results.append((None, None, has_eos))
+                continue
 
-        content_tokens = output_tokens[think_start_idx + 1:think_end_idx]
-        decoded = tokenizer.decode(content_tokens, skip_special_tokens=False)
+            content_tokens = output_tokens[think_start_idx + 1:think_end_idx]
+            decoded = tokenizer.decode(content_tokens, skip_special_tokens=False)
 
-        think_content, result_str = validate_and_extract_think(decoded)
-        results.append((think_content, result_str, has_eos))
+            think_content, result_str = validate_and_extract_think(decoded)
+            results.append((think_content, result_str, has_eos))
+        except Exception as e:
+            results.append((None, None, True))
+            print(f"Error processing sample {i}: {e}")
 
     return results

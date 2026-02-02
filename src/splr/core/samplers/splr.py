@@ -126,7 +126,7 @@ class SPLRSampler():
             batch_on_device = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
             # Forward
-            outputs = self.model(carry=carry, batch=batch_on_device)
+            outputs = self.model(carry=carry, batch=batch_on_device, compute_logits=False)
             carry = outputs.carry
 
             # Extract z_H and halt from carry

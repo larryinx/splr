@@ -126,30 +126,34 @@ def postprocess_tool_output(
     tool_call_end_id = tokenizer.encode("</tool_call>", add_special_tokens=False)[0]
 
     for i in range(batch_size):
-        # Get the output portion (after input)
-        input_len = input_lengths[i]
-        output_tokens = output_ids[i, input_len:]
-        has_eos = False
-        if output_tokens[0] == eos_token_id:
-            has_eos = True
+        try:
+            # Get the output portion (after input)
+            input_len = input_lengths[i]
+            output_tokens = output_ids[i, input_len:]
+            has_eos = False
+            if output_tokens[0] == eos_token_id:
+                has_eos = True
 
-        tool_call_start_idx = None
-        tool_call_end_idx = None
-        for i, token in enumerate(output_tokens):
-            if token == tool_call_id:
-                tool_call_start_idx = i
-            elif token == tool_call_end_id:
-                tool_call_end_idx = i
-                break
-        
-        if tool_call_start_idx is None or tool_call_end_idx is None:
-            results.append((None, None, has_eos))
-            continue
-        
-        output_tokens = output_tokens[tool_call_start_idx+1:tool_call_end_idx]
-        decoded = tokenizer.decode(output_tokens, skip_special_tokens=False)
+            tool_call_start_idx = None
+            tool_call_end_idx = None
+            for i, token in enumerate(output_tokens):
+                if token == tool_call_id:
+                    tool_call_start_idx = i
+                elif token == tool_call_end_id:
+                    tool_call_end_idx = i
+                    break
+            
+            if tool_call_start_idx is None or tool_call_end_idx is None:
+                results.append((None, None, has_eos))
+                continue
+            
+            output_tokens = output_tokens[tool_call_start_idx+1:tool_call_end_idx]
+            decoded = tokenizer.decode(output_tokens, skip_special_tokens=False)
 
-        result, error = validate_and_compute_formula(decoded)
-        results.append((decoded, result, has_eos))
+            result, error = validate_and_compute_formula(decoded)
+            results.append((decoded, result, has_eos))
+        except Exception as e:
+            results.append((None, None, True))
+            print(f"Error processing sample {i}: {e}")
 
     return results

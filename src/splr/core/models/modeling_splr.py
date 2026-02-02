@@ -755,7 +755,8 @@ class SPLRModel(nn.Module):
     def forward(
         self,
         carry: SPLRCarry,
-        batch: Dict[str, torch.Tensor]
+        batch: Dict[str, torch.Tensor],
+        compute_logits: bool = True,
     ) -> SPLRModelOutput:
         """
         Forward pass with multi-step reasoning halting logic.
@@ -806,7 +807,7 @@ class SPLRModel(nn.Module):
 
         new_current_data = {}
         for k in batch.keys():
-            current_turn_data = new_multi_step_data[k][batch_indices, new_global_steps]
+            current_turn_data = new_multi_step_data[k][batch_indices, new_global_steps.clamp(max=self.config.max_reasoning_steps - 1)]
 
             # Update only for halted samples
             new_current_data[k] = torch.where(
@@ -820,7 +821,10 @@ class SPLRModel(nn.Module):
 
         # Forward through reasoning backbone
         new_inner_carry, z_H, (q_halt_logits, q_continue_logits) = self.inner(new_inner_carry, new_current_data)
-        logits = self.output_head(z_H)
+        if compute_logits:
+            logits = self.output_head(z_H)
+        else:
+            logits = z_H.new_empty(0)
 
         # Local halting logic
         with torch.no_grad():
