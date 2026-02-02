@@ -1,0 +1,87 @@
+defaults:
+  - arch: splr
+  - _self_
+
+hydra:
+  output_subdir: null
+
+# Data paths
+dataset_name: gsm8k-tool
+# train_file and val_file can be a single file path (string) or a list of file paths
+train_file:
+  - ./datasets/gsm8k/tool_normalized/train.json
+val_file:
+  - ./datasets/gsm8k/tool_normalized/test.json
+  - ./datasets/gsm8k/tool_normalized/valid.json
+
+# Input mode: "recurrent" or "autoregressive"
+input_mode: recurrent
+
+# Tokenizer path
+tokenizer_path: <path-to-the-tokenizer>
+
+# DataLoader workers
+number_of_workers: 16
+
+# Training hyperparameters
+global_batch_size: 512
+num_epochs: 100
+
+# Optimizer
+optimizer: AdamATan2
+freeze_weights: false
+lr: 5.0e-5
+lr_min_ratio: 1.0
+lr_warmup_steps: 4000
+beta1: 0.9
+beta2: 0.95
+weight_decay: 0.1
+
+task_emb_lr: 1e-2
+
+enable_halt_loss: true
+q_halt_weight: 0.05  # Weight for q_halt loss
+
+# Training options
+grad_clip_norm: 1.0
+
+# EMA (Exponential Moving Average)
+ema: true
+ema_rate: 0.999
+save_ema: true  # Save EMA state in checkpoint file
+load_checkpoint_from_ema: false  # Load from EMA state when resuming
+
+# Log / save every n steps
+log_interval: 5
+save_interval: 4000
+# Validation (loss-based) every N steps
+val_interval: 4000
+# Benchmark evaluation (accuracy-based) every N steps
+eval_interval: 4000
+checkpoint_every_eval: false
+
+# Eval-only mode
+eval_only: false
+
+# Benchmark evaluation configs (list of YAML file paths)
+eval_configs:
+  - ./configs/eval/halt_tool.yaml
+  - ./configs/eval/no_halt_8_tool.yaml
+  - ./configs/eval/no_halt_16_tool.yaml
+
+# Distributed training
+use_ddp: true
+local_rank: -1
+
+# Output
+output_dir: <path-to-the-output-directory>
+
+# Checkpoint loading
+load_checkpoint: null
+
+# Wandb
+project_name: splr-pretrain-tool
+run_name: <wandb-run-name>
+
+# Misc
+seed: 0
