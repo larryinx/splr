@@ -1,6 +1,6 @@
 # SPLR Architecture Configuration
 
-name: splr
+name: splr_hrm_gpt_zl
 
 # Model architecture
 hidden_size: 768
@@ -11,12 +11,12 @@ intermediate_size: 2048
 tie_word_embeddings: false
 
 # TRM recursive reasoning
-hierarchical_reasoning: false
-L_cycles: 6
-H_cycles: 3
-L_layers: 2
-H_layers: 0
-L_grad_cycles: 6
+hierarchical_reasoning: true
+L_cycles: 2
+H_cycles: 2
+L_layers: 4
+H_layers: 4
+L_grad_cycles: 1
 H_grad_cycles: 1
 
 # Halting
@@ -33,7 +33,7 @@ num_task_identifiers: 1
 
 # Inter-step reasoning
 enable_inter_latent: true
-inter_reasoning_only: false
+inter_reasoning_only: true
 
 # Embedding loading
 load_embedding: openai-community/gpt2

@@ -3,7 +3,8 @@
 \#*\#
 .DS_Store
 
-/datasets/
+/datasets/**/
+
 /related/
 **/logs/
 wandb/

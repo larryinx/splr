@@ -1,6 +1,6 @@
 # SPLR Architecture Configuration
 
-name: splr
+name: splr_trm_gpt
 
 # Model architecture
 hidden_size: 768

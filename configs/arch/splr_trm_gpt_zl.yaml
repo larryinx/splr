@@ -1,6 +1,6 @@
 # SPLR Architecture Configuration
 
-name: splr
+name: splr_trm_gpt_zl
 
 # Model architecture
 hidden_size: 768
@@ -33,7 +33,7 @@ num_task_identifiers: 1
 
 # Inter-step reasoning
 enable_inter_latent: true
-inter_reasoning_only: false
+inter_reasoning_only: true
 
 # Embedding loading
 load_embedding: openai-community/gpt2

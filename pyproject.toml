@@ -22,6 +22,7 @@ dependencies = [
     "ninja>=1.13.0",
     "pydantic-core>=2.41.5",
     "pyyaml>=6.0.3",
+    "scipy>=1.17.0",
     "setuptools>=80.9.0",
     "torch>=2.9.1",
     "torchinfo>=1.8.0",
@@ -39,6 +40,9 @@ Issues = "https://github.com/larryinx/splr/issues"
 
 [tool.hatch.version]
 path = "src/splr/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/splr"]
 
 # testing (pytest) and coverage (coverage, pytest-cov)
 [tool.coverage.run]
@@ -76,10 +80,7 @@ dev = [
     "black",
     "coverage[toml]",
     "hatch",
-    "openai>=2.8.1",
     "pytest-cov",
     "pytest>=6",
     "ruff",
-    "tiktoken>=0.12.0",
-    "word2number>=1.1",
 ]

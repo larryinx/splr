@@ -1,0 +1,11 @@
+name: no_halt_16_tool
+enable_halt: false
+halt_max_steps: 16
+max_reasoning_steps: 2
+eval_mode: tool
+batch_size: 512
+eval_datasets:
+  - ./datasets/gsm8k.json
+  - ./datasets/gsm-hard.json
+  - ./datasets/MultiArith.json
+  - ./datasets/SVAMP.json
