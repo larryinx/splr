@@ -1,7 +1,7 @@
-name: halt_tool
+name: halt_2
 enable_halt: true
-halt_max_steps: 16
-eval_mode: tool
+halt_max_steps: 2
+eval_mode: think
 batch_size: 256
 eval_datasets:
   - ./datasets/gsm8k.json

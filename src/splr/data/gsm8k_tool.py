@@ -909,7 +909,8 @@ def generate_data(args):
 
     # Load tokenizer for token counting
     print("Loading tokenizer for token counting...")
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+    # tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
 
     with open(f"./datasets/gsm8k/{args.split}.txt") as f:
         data = f.readlines()

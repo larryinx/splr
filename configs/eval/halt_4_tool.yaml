@@ -1,6 +1,6 @@
-name: halt_tool
+name: halt_4_tool
 enable_halt: true
-halt_max_steps: 16
+halt_max_steps: 4
 eval_mode: tool
 batch_size: 256
 eval_datasets:

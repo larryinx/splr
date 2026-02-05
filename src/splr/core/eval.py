@@ -34,7 +34,7 @@ class EvalConfig(pydantic.BaseModel):
     name: str
     enable_halt: bool = True
     halt_max_steps: int = 16
-    max_reasoning_steps: int = 12
+    max_reasoning_steps: Optional[int] = None
     eval_datasets: List[str] = []
     eval_mode: str = "tool"  # "tool" or "think"
     batch_size: int = 512
@@ -245,6 +245,10 @@ class SPLREvaluator:
         Returns:
             Dict of all evaluation metrics
         """
+        # Barrier at start of evaluation to ensure all ranks enter together
+        if self.rank != -1:
+            dist.barrier()
+
         all_metrics = {}
         for eval_config in eval_configs:
             if eval_config.eval_mode not in ("tool", "think"):
@@ -254,6 +258,10 @@ class SPLREvaluator:
 
             config_metrics = self.evaluate_config(eval_config, global_step, input_mode)
             all_metrics[eval_config.name] = config_metrics
+
+        # Barrier at end of evaluation to synchronize before returning to training
+        if self.rank != -1:
+            dist.barrier()
 
         return all_metrics
 
@@ -278,7 +286,25 @@ class SPLREvaluator:
         prefix = f"eval_{eval_config.name}"
 
         for dataset_path in eval_config.eval_datasets:
-            if not os.path.exists(dataset_path):
+            # Synchronize file existence check across all ranks to avoid NCCL desync
+            # on distributed filesystems (NFS) where os.path.exists() can return
+            # different results due to metadata caching inconsistencies
+            if self.rank != -1:
+                # Rank 0 checks file existence and broadcasts to all ranks
+                exists_tensor = torch.tensor(
+                    [1 if os.path.exists(dataset_path) else 0],
+                    dtype=torch.int32,
+                    device=self.device
+                )
+                dist.broadcast(exists_tensor, src=0)
+                file_exists = exists_tensor.item() == 1
+                
+                # Barrier to ensure all ranks are synchronized before proceeding
+                dist.barrier()
+            else:
+                file_exists = os.path.exists(dataset_path)
+
+            if not file_exists:
                 if self.is_main_process:
                     print(f"  Skipping missing dataset: {dataset_path}")
                 continue
@@ -435,20 +461,23 @@ class SPLREvaluator:
         final_answers = [None] * batch_size
         generate_carry = None
 
+        # Resolve max_reasoning_steps: eval config override > model config
+        max_reasoning_steps = eval_config.max_reasoning_steps if eval_config.max_reasoning_steps is not None else self.model_config.max_reasoning_steps
+
         # Preprocess initial input
         input_ids, actual_lengths = preprocess_input(
             questions, self.tokenizer, self.input_max_len
         )
         input_ids = input_ids.to(device)
 
-        for step_idx in range(eval_config.max_reasoning_steps):
+        for step_idx in range(max_reasoning_steps):
             # Run sampler
             sampler_output = self.sampler.sample(
                 input_ids=input_ids,
                 generate_carry=generate_carry,
                 enable_halt=eval_config.enable_halt,
                 halt_max_steps=eval_config.halt_max_steps,
-                max_reasoning_steps=eval_config.max_reasoning_steps,
+                max_reasoning_steps=max_reasoning_steps,
             )
 
             output_ids = sampler_output.output_ids
@@ -574,20 +603,23 @@ class SPLREvaluator:
         final_answers = [None] * batch_size
         generate_carry = None
 
+        # Resolve max_reasoning_steps: eval config override > model config
+        max_reasoning_steps = eval_config.max_reasoning_steps if eval_config.max_reasoning_steps is not None else self.model_config.max_reasoning_steps
+
         # Preprocess initial input
         input_ids, actual_lengths = preprocess_input(
             questions, self.tokenizer, self.input_max_len
         )
         input_ids = input_ids.to(device)
 
-        for step_idx in range(eval_config.max_reasoning_steps):
+        for step_idx in range(max_reasoning_steps):
             # Run sampler
             sampler_output = self.sampler.sample(
                 input_ids=input_ids,
                 generate_carry=generate_carry,
                 enable_halt=eval_config.enable_halt,
                 halt_max_steps=eval_config.halt_max_steps,
-                max_reasoning_steps=eval_config.max_reasoning_steps,
+                max_reasoning_steps=max_reasoning_steps,
             )
 
             output_ids = sampler_output.output_ids

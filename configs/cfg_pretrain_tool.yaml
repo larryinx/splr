@@ -65,9 +65,14 @@ eval_only: false
 
 # Benchmark evaluation configs (list of YAML file paths)
 eval_configs:
+  - ./configs/eval/halt_2_tool.yaml
+  - ./configs/eval/halt_4_tool.yaml
+  - ./configs/eval/halt_8_tool.yaml
   - ./configs/eval/halt_tool.yaml
+  - ./configs/eval/no_halt_2_tool.yaml
+  - ./configs/eval/no_halt_4_tool.yaml
   - ./configs/eval/no_halt_8_tool.yaml
-  - ./configs/eval/no_halt_16_tool.yaml
+  # - ./configs/eval/no_halt_16_tool.yaml
 
 # Distributed training
 use_ddp: true

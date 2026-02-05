@@ -35,6 +35,10 @@ def validate_and_compute_formula(formula: str) -> Tuple[Optional[float], str]:
     if not re.match(r'^[\d+\-*/().  ]+$', formula):
         return None, f"Invalid characters in formula: {formula}"
 
+    # Reject exponentiation (**) — can hang eval() on adversarial inputs
+    if '**' in formula:
+        return None, "Exponentiation not supported"
+
     try:
         # Use Python eval with restricted globals for safety
         result = eval(formula, {"__builtins__": {}}, {})

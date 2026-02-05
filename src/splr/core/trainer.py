@@ -540,17 +540,10 @@ class SPLRTrainer:
         if self.ema_helper is not None:
             original_model = self.model
             ema_model = self.ema_helper.ema_copy(self.get_model())
-            if self.rank != -1:
-                ema_model = DDP(
-                    ema_model,
-                    device_ids=[self.rank],
-                    output_device=self.rank,
-                )
             self.model = ema_model
             # Update the evaluator's model reference
-            unwrapped = ema_model.module if isinstance(ema_model, DDP) else ema_model
-            self.evaluator.model = unwrapped
-            self.evaluator.sampler.model = unwrapped
+            self.evaluator.model = ema_model
+            self.evaluator.sampler.model = ema_model
 
         if self.is_main_process:
             print(f"\nRunning benchmark evaluation at step {self.global_step}...")
@@ -564,9 +557,9 @@ class SPLRTrainer:
         # Restore original model
         if original_model is not None:
             self.model = original_model
-            unwrapped = self.get_model()
-            self.evaluator.model = unwrapped
-            self.evaluator.sampler.model = unwrapped
+            model = self.get_model()
+            self.evaluator.model = model
+            self.evaluator.sampler.model = model
 
 
     @torch.no_grad()
@@ -575,18 +568,12 @@ class SPLRTrainer:
         # Use EMA model for validation if enabled
         original_model = None
         if self.ema_helper is not None:
-            import copy
             # Save original model
             original_model = self.model
-            # Create EMA copy
+            # Create EMA copy (no DDP wrapping — validation has no gradient
+            # sync, and DDP buffer broadcasts would desync ranks when the
+            # turn loop breaks early on data-dependent carry.global_halted)
             ema_model = self.ema_helper.ema_copy(self.get_model())
-            # Wrap with DDP if needed
-            if self.rank != -1:
-                ema_model = DDP(
-                    ema_model,
-                    device_ids=[self.rank],
-                    output_device=self.rank,
-                )
             self.model = ema_model
 
         self.model.eval()

@@ -1,7 +1,6 @@
 name: no_halt_8
 enable_halt: false
 halt_max_steps: 8
-max_reasoning_steps: 2
 eval_mode: think
 batch_size: 256
 eval_datasets:
