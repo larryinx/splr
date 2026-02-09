@@ -24,7 +24,7 @@ halt_max_steps: 16
 halt_exploration_prob: 0.1
 
 # Multi-step reasoning
-max_reasoning_steps: 6
+max_reasoning_steps: 12
 
 # Task embeddings
 task_emb_len: 1

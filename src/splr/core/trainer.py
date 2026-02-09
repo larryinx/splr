@@ -76,6 +76,10 @@ class TrainConfig(pydantic.BaseModel):
     # Benchmark evaluation configs (list of YAML file paths)
     eval_configs: List[str] = []
 
+    # Save detailed evaluation results (step-by-step traces) to JSON
+    save_eval_results: bool = False
+    eval_results_dir: Union[str, None] = None  # Defaults to output_dir/eval_results
+
     # EMA
     ema: bool = False
     ema_rate: float = 0.999
@@ -548,10 +552,17 @@ class SPLRTrainer:
         if self.is_main_process:
             print(f"\nRunning benchmark evaluation at step {self.global_step}...")
 
+        # Resolve eval_results_dir: config override > output_dir/eval_results
+        eval_results_dir = self.config.eval_results_dir
+        if eval_results_dir is None and self.config.save_eval_results:
+            eval_results_dir = str(Path(self.config.output_dir) / "eval_results")
+
         self.evaluator.evaluate(
             eval_configs=eval_configs,
             global_step=self.global_step,
             input_mode=self.config.input_mode,
+            save_eval_results=self.config.save_eval_results,
+            eval_results_dir=eval_results_dir,
         )
 
         # Restore original model

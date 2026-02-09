@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=splr_pretrain_reasoning
+#SBATCH --job-name=splr_pretrain_react
 #SBATCH --account=<account-name>
 #SBATCH --time=11:59:00
 #SBATCH --nodes=1
@@ -36,7 +36,7 @@ ARCH=${ARCH_CONFIGS[$SLURM_ARRAY_TASK_ID]}
 MODE=${INPUT_MODES[$SLURM_ARRAY_TASK_ID]}
 TOKENIZER_PATH=${TOKENIZER_PATHS[$SLURM_ARRAY_TASK_ID]}
 
-OUTPUT_DIR=./results/experiments/pretrain_think/${ARCH}_${MODE}_${MAX_REASONING_STEPS}
+OUTPUT_DIR=./results/experiments/pretrain_react/${ARCH}_${MODE}_${MAX_REASONING_STEPS}
 
 echo "=== Array task $SLURM_ARRAY_TASK_ID: arch=$ARCH  input_mode=$MODE ==="
 
@@ -53,7 +53,7 @@ torchrun \
     --nproc_per_node=$NUM_GPUS \
     --master_port=$MASTER_PORT \
     main.py \
-    --config-name cfg_pretrain \
+    --config-name cfg_pretrain_tool \
     arch=$ARCH \
     input_mode=$MODE \
     tokenizer_path=$TOKENIZER_PATH \

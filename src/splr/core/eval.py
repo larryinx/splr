@@ -1,5 +1,6 @@
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -38,6 +39,43 @@ class EvalConfig(pydantic.BaseModel):
     eval_datasets: List[str] = []
     eval_mode: str = "tool"  # "tool" or "think"
     batch_size: int = 512
+
+
+@dataclass
+class StepTrace:
+    """Single step in the reasoning trace."""
+    step_idx: int
+    decoded_action: Optional[str]  # The formula/think content decoded
+    observation: Optional[str]  # The computed result or extracted value
+    input_text: str  # The input text for this step
+
+    def to_dict(self) -> Dict:
+        return {
+            "step": self.step_idx,
+            "action": self.decoded_action,
+            "observation": self.observation,
+            "input": self.input_text,
+        }
+
+
+@dataclass
+class SampleResult:
+    """Complete result for one sample."""
+    question: str
+    ground_truth: str
+    final_answer: Optional[str]
+    correct: bool
+    steps: List[StepTrace]
+
+    def to_dict(self) -> Dict:
+        return {
+            "question": self.question,
+            "ground_truth": self.ground_truth,
+            "final_answer": self.final_answer,
+            "correct": self.correct,
+            "num_steps": len(self.steps),
+            "steps": [s.to_dict() for s in self.steps],
+        }
 
 
 def load_eval_config(path: str) -> EvalConfig:
@@ -233,6 +271,8 @@ class SPLREvaluator:
         eval_configs: List[EvalConfig],
         global_step: int,
         input_mode: str = "recurrent",
+        save_eval_results: bool = False,
+        eval_results_dir: Optional[str] = None,
     ) -> Dict:
         """
         Run all evaluation configs and log results.
@@ -241,6 +281,8 @@ class SPLREvaluator:
             eval_configs: List of EvalConfig objects
             global_step: Current training step (for logging)
             input_mode: "recurrent" or "autoregressive"
+            save_eval_results: Whether to save detailed step-by-step results
+            eval_results_dir: Directory to save results (if save_eval_results is True)
 
         Returns:
             Dict of all evaluation metrics
@@ -256,7 +298,11 @@ class SPLREvaluator:
                     print(f"Skipping eval config '{eval_config.name}': mode '{eval_config.eval_mode}' not implemented")
                 continue
 
-            config_metrics = self.evaluate_config(eval_config, global_step, input_mode)
+            config_metrics = self.evaluate_config(
+                eval_config, global_step, input_mode,
+                save_eval_results=save_eval_results,
+                eval_results_dir=eval_results_dir,
+            )
             all_metrics[eval_config.name] = config_metrics
 
         # Barrier at end of evaluation to synchronize before returning to training
@@ -270,6 +316,8 @@ class SPLREvaluator:
         eval_config: EvalConfig,
         global_step: int,
         input_mode: str = "recurrent",
+        save_eval_results: bool = False,
+        eval_results_dir: Optional[str] = None,
     ) -> Dict:
         """
         Run one eval config on all its datasets.
@@ -278,6 +326,8 @@ class SPLREvaluator:
             eval_config: EvalConfig object
             global_step: Current training step
             input_mode: "recurrent" or "autoregressive"
+            save_eval_results: Whether to save detailed step-by-step results
+            eval_results_dir: Directory to save results
 
         Returns:
             Dict of metrics per dataset
@@ -310,7 +360,10 @@ class SPLREvaluator:
                 continue
 
             dataset_name = Path(dataset_path).stem
-            metrics = self.evaluate_dataset(dataset_path, eval_config, input_mode)
+            metrics = self.evaluate_dataset(
+                dataset_path, eval_config, input_mode,
+                save_traces=save_eval_results,
+            )
             config_metrics[dataset_name] = metrics
 
             # Log to wandb
@@ -323,6 +376,26 @@ class SPLREvaluator:
                 wandb.log(log_dict, step=global_step)
                 print(f"  {prefix}/{dataset_name}: accuracy={metrics['accuracy']:.4f} ({metrics['correct']}/{metrics['total']})")
 
+                # Save detailed results to JSON if requested
+                if save_eval_results and "results" in metrics and eval_results_dir is not None:
+                    results_dir = Path(eval_results_dir)
+                    results_dir = results_dir / eval_config.name
+                    results_dir.mkdir(parents=True, exist_ok=True)
+
+                    output_file = results_dir / f"{dataset_name}_step{global_step}.json"
+                    results_data = {
+                        "eval_config": eval_config.name,
+                        "dataset": dataset_name,
+                        "global_step": global_step,
+                        "accuracy": metrics["accuracy"],
+                        "correct": metrics["correct"],
+                        "total": metrics["total"],
+                        "samples": metrics["results"],
+                    }
+                    with open(output_file, 'w') as f:
+                        json.dump(results_data, f, indent=2, ensure_ascii=False)
+                    print(f"    Saved detailed results to: {output_file}")
+
         return config_metrics
 
     def evaluate_dataset(
@@ -330,7 +403,8 @@ class SPLREvaluator:
         dataset_path: str,
         eval_config: EvalConfig,
         input_mode: str = "recurrent",
-    ) -> Dict[str, float]:
+        save_traces: bool = False,
+    ) -> Dict:
         """
         Evaluate one dataset.
 
@@ -341,9 +415,10 @@ class SPLREvaluator:
             dataset_path: Path to the dataset JSON file
             eval_config: EvalConfig object
             input_mode: "recurrent" or "autoregressive"
+            save_traces: Whether to save step-by-step traces
 
         Returns:
-            Dict with accuracy, total, correct
+            Dict with accuracy, total, correct, and optionally results
         """
         # Load dataset
         with open(dataset_path, 'r') as f:
@@ -385,6 +460,7 @@ class SPLREvaluator:
         batch_size = eval_config.batch_size
         correct_count = 0
         total_count = 0
+        all_results: List[SampleResult] = []
 
         self.model.eval()
 
@@ -394,19 +470,24 @@ class SPLREvaluator:
             batch_answers = [answers[i] for i in batch_indices]
 
             if eval_config.eval_mode == "think":
-                batch_correct, batch_total, _ = self.evaluate_batch_think(
+                batch_correct, batch_total, batch_results = self.evaluate_batch_think(
                     batch_questions,
                     batch_answers,
                     eval_config,
                     input_mode,
+                    save_traces=save_traces,
                 )
             else:
-                batch_correct, batch_total, _ = self.evaluate_batch(
+                batch_correct, batch_total, batch_results = self.evaluate_batch(
                     batch_questions,
                     batch_answers,
                     eval_config,
                     input_mode,
+                    save_traces=save_traces,
                 )
+
+            if save_traces:
+                all_results.extend(batch_results)
             correct_count += batch_correct
             total_count += batch_total
 
@@ -420,11 +501,31 @@ class SPLREvaluator:
             total_count = int(total_tensor.item())
 
         accuracy = correct_count / max(total_count, 1)
-        return {
+        result = {
             "accuracy": accuracy,
             "total": total_count,
             "correct": correct_count,
         }
+
+        if save_traces:
+            local_results = [r.to_dict() for r in all_results]
+
+            if self.rank != -1:
+                # Gather results from all ranks to rank 0
+                # Serialize to JSON string for transport via gather_object
+                gathered_results = [None] * self.world_size if self.is_main_process else None
+                dist.gather_object(local_results, gathered_results, dst=0)
+
+                if self.is_main_process:
+                    # Flatten gathered results from all ranks
+                    all_gathered = []
+                    for rank_results in gathered_results:
+                        all_gathered.extend(rank_results)
+                    result["results"] = all_gathered
+            else:
+                result["results"] = local_results
+
+        return result
 
     def evaluate_batch(
         self,
@@ -432,7 +533,8 @@ class SPLREvaluator:
         answers: List[str],
         eval_config: EvalConfig,
         input_mode: str = "recurrent",
-    ) -> Tuple[int, int, List[Dict]]:
+        save_traces: bool = False,
+    ) -> Tuple[int, int, List[SampleResult]]:
         """
         Evaluate one batch of questions.
 
@@ -448,6 +550,7 @@ class SPLREvaluator:
             answers: List of expected answer strings
             eval_config: EvalConfig object
             input_mode: "recurrent" or "autoregressive"
+            save_traces: Whether to save step-by-step traces
 
         Returns:
             Tuple of (correct_count, total_count, results_list)
@@ -460,6 +563,9 @@ class SPLREvaluator:
         stopped = [False] * batch_size
         final_answers = [None] * batch_size
         generate_carry = None
+
+        # Step traces for each sample
+        step_traces: List[List[StepTrace]] = [[] for _ in range(batch_size)]
 
         # Resolve max_reasoning_steps: eval config override > model config
         max_reasoning_steps = eval_config.max_reasoning_steps if eval_config.max_reasoning_steps is not None else self.model_config.max_reasoning_steps
@@ -497,12 +603,20 @@ class SPLREvaluator:
                     results.append(None)
                     continue
 
+                # Record step trace
+                if save_traces:
+                    observation_str = None
+                    if computed_result is not None:
+                        observation_str = _format_result(computed_result) if isinstance(computed_result, float) else str(computed_result)
+                    step_traces[i].append(StepTrace(
+                        step_idx=step_idx + 1,
+                        decoded_action=formula_text,
+                        observation=observation_str,
+                        input_text=accumulated_texts[i],
+                    ))
+
                 if is_done:
                     stopped[i] = True
-                    # Extract final answer from accumulated text
-                    # last_response = extract_last_tool_response(accumulated_texts[i])
-                    # if last_response is not None:
-                    #     final_answers[i] = last_response
                     final_answers[i] = computed_result
                     formulas.append(formula_text)
                     results.append(computed_result)
@@ -512,11 +626,7 @@ class SPLREvaluator:
                     # Track the latest result as potential final answer
                     final_answers[i] = _format_result(computed_result)
                 else:
-                    # Formula was invalid — stop this sample
-                    # stopped[i] = True
-                    # last_response = extract_last_tool_response(accumulated_texts[i])
-                    # if last_response is not None:
-                    #     final_answers[i] = last_response
+                    # Formula was invalid
                     formulas.append(formula_text)
                     results.append(None)
 
@@ -548,19 +658,29 @@ class SPLREvaluator:
             )
             input_ids = input_ids.to(device)
 
-        # Compare final answers
+        # Compare final answers and build results
         correct_count = 0
         results_list = []
         for i in range(batch_size):
+            # Format final answer
+            final_ans_str = None
+            if final_answers[i] is not None:
+                if isinstance(final_answers[i], float):
+                    final_ans_str = _format_result(final_answers[i])
+                else:
+                    final_ans_str = str(final_answers[i])
+
             is_correct = compare_answers_tool(final_answers[i], answers[i])
             if is_correct:
                 correct_count += 1
-            results_list.append({
-                "question": questions[i],
-                "expected": answers[i],
-                "predicted": final_answers[i],
-                "correct": is_correct,
-            })
+
+            results_list.append(SampleResult(
+                question=questions[i],
+                ground_truth=answers[i],
+                final_answer=final_ans_str,
+                correct=is_correct,
+                steps=step_traces[i] if save_traces else [],
+            ))
 
         return correct_count, batch_size, results_list
 
@@ -570,7 +690,8 @@ class SPLREvaluator:
         answers: List[str],
         eval_config: EvalConfig,
         input_mode: str = "recurrent",
-    ) -> Tuple[int, int, List[Dict]]:
+        save_traces: bool = False,
+    ) -> Tuple[int, int, List[SampleResult]]:
         """
         Evaluate one batch of questions in think mode.
 
@@ -590,6 +711,7 @@ class SPLREvaluator:
             answers: List of expected answer strings
             eval_config: EvalConfig object
             input_mode: "recurrent" or "autoregressive"
+            save_traces: Whether to save step-by-step traces
 
         Returns:
             Tuple of (correct_count, total_count, results_list)
@@ -602,6 +724,9 @@ class SPLREvaluator:
         stopped = [False] * batch_size
         final_answers = [None] * batch_size
         generate_carry = None
+
+        # Step traces for each sample
+        step_traces: List[List[StepTrace]] = [[] for _ in range(batch_size)]
 
         # Resolve max_reasoning_steps: eval config override > model config
         max_reasoning_steps = eval_config.max_reasoning_steps if eval_config.max_reasoning_steps is not None else self.model_config.max_reasoning_steps
@@ -636,6 +761,15 @@ class SPLREvaluator:
                 if stopped[i]:
                     think_contents.append(None)
                     continue
+
+                # Record step trace
+                if save_traces:
+                    step_traces[i].append(StepTrace(
+                        step_idx=step_idx + 1,
+                        decoded_action=think_content,  # The full equation e.g. "2+3=5"
+                        observation=result_str,  # The extracted result e.g. "5"
+                        input_text=accumulated_texts[i],
+                    ))
 
                 if is_done:
                     stopped[i] = True
@@ -675,18 +809,20 @@ class SPLREvaluator:
             )
             input_ids = input_ids.to(device)
 
-        # Compare final answers
+        # Compare final answers and build results
         correct_count = 0
         results_list = []
         for i in range(batch_size):
             is_correct = compare_answers_think(final_answers[i], answers[i])
             if is_correct:
                 correct_count += 1
-            results_list.append({
-                "question": questions[i],
-                "expected": answers[i],
-                "predicted": final_answers[i],
-                "correct": is_correct,
-            })
+
+            results_list.append(SampleResult(
+                question=questions[i],
+                ground_truth=answers[i],
+                final_answer=final_answers[i],
+                correct=is_correct,
+                steps=step_traces[i] if save_traces else [],
+            ))
 
         return correct_count, batch_size, results_list

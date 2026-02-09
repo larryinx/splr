@@ -67,12 +67,16 @@ eval_only: false
 eval_configs:
   - ./configs/eval/halt_2.yaml
   - ./configs/eval/halt_4.yaml
-  - ./configs/eval/halt_8.yaml
+  # - ./configs/eval/halt_8.yaml
   - ./configs/eval/halt.yaml
-  - ./configs/eval/no_halt_2.yaml
-  - ./configs/eval/no_halt_4.yaml
-  - ./configs/eval/no_halt_8.yaml
+  # - ./configs/eval/no_halt_2.yaml
+  # - ./configs/eval/no_halt_4.yaml
+  # - ./configs/eval/no_halt_8.yaml
   # - ./configs/eval/no_halt_16.yaml
+
+# Save detailed evaluation results (step-by-step traces) to JSON
+save_eval_results: false
+eval_results_dir: null  # Defaults to output_dir/eval_results if null
 
 # Distributed training
 use_ddp: true

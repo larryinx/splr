@@ -199,10 +199,18 @@ def main(hydra_config: DictConfig):
             if is_main_process:
                 print("No eval configs loaded. Exiting.")
         else:
+            # Resolve eval_results_dir
+            save_eval_results = getattr(config, 'save_eval_results', False)
+            eval_results_dir = getattr(config, 'eval_results_dir', None)
+            if eval_results_dir is None and save_eval_results:
+                eval_results_dir = str(Path(config.output_dir) / "eval_results") if hasattr(config, 'output_dir') else "./results/eval_results"
+
             evaluator.evaluate(
                 eval_configs=eval_configs,
                 global_step=initial_global_step,
                 input_mode=config.input_mode,
+                save_eval_results=save_eval_results,
+                eval_results_dir=eval_results_dir,
             )
 
         if is_main_process:
