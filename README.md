@@ -1,6 +1,6 @@
-# Step-wise Persistent Latent Reasoner
+# Persistent Latent Reasoner
 
-This is an beta version of the SPLR project README.md file. We will update the official version later.
+This is an beta version README.md file. We will update the official version with fully organized code repository later.
 
 ## Development setup
 
