@@ -1,4 +1,4 @@
-# Recursive-Internal
+# Step-wise Persistent Latent Reasoner
 
 This is an beta version of the SPLR project README.md file. We will update the official version later.
 
