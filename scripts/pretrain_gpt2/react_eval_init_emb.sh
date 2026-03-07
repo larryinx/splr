@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# ── React-only evaluation ─────────────────────────────────────────
+export CUDA_VISIBLE_DEVICES=0
+
+# ── React-only evaluation (init_emb) ─────────────────────────────
 CHECKPOINT_STEP="${1:-10000}"
 shift 2>/dev/null || true
 
@@ -9,7 +11,7 @@ shift 2>/dev/null || true
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-RESULT_DIR="$PROJECT_DIR/results/pretrain_gpt2_react"
+RESULT_DIR="$PROJECT_DIR/results/pretrain_gpt2_react_init_emb"
 MODEL_PATH="$RESULT_DIR/checkpoint-$CHECKPOINT_STEP"
 OUTPUT_DIR="$RESULT_DIR/eval-$CHECKPOINT_STEP"
 

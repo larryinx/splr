@@ -1,14 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
+# ── React-only evaluation ─────────────────────────────────────────
+CHECKPOINT_STEP="${1:-6000}"
+shift 2>/dev/null || true
+
 # ── Paths ─────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-CHECKPOINT_STEP=6000
-
-MODEL_PATH="${1:-$PROJECT_DIR/results/pretrain_gpt2_react/checkpoint-$CHECKPOINT_STEP}"
-OUTPUT_DIR="$PROJECT_DIR/results/pretrain_gpt2_react/eval-$CHECKPOINT_STEP"
+RESULT_DIR="$PROJECT_DIR/results/pretrain_gpt2_react"
+MODEL_PATH="$RESULT_DIR/checkpoint-$CHECKPOINT_STEP"
+OUTPUT_DIR="$RESULT_DIR/eval-$CHECKPOINT_STEP"
 
 export TOKENIZERS_PARALLELISM=false
 
@@ -28,6 +31,6 @@ python "$SCRIPT_DIR/react_eval.py" \
     --max_new_tokens 128 \
     --cpu \
     --output_file "$OUTPUT_DIR/eval_results.json" \
-    "${@:2}"
+    "$@"
 
 echo "Evaluation completed!"

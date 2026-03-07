@@ -1,51 +1,28 @@
 #!/bin/bash
-#SBATCH --job-name=splr_pretrain_reasoning
-#SBATCH --account=<account-name>
-#SBATCH --time=11:59:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
-#SBATCH --mem=400G
-#SBATCH --gres=gpu:h100:2
-#SBATCH --output=logs/%x-%A_%a.out
-#SBATCH --error=logs/%x-%A_%a.err
-#SBATCH --array=0-1
+# This is the script to train the first curriculum learning step of the SPLR model.
 
-# ── Array task mapping ──────────────────────────────────────────
-#  0  recurrent      splr_trm_gpt
-#  1  recurrent      splr_trm_gpt
-# ────────────────────────────────────────────────────────────────
-
-MAX_REASONING_STEPS=<max_reasoning_steps>
-
-ARCH_CONFIGS=(
-    splr_trm_gpt
-    splr_trm_gpt
-)
-
-INPUT_MODES=(
-    recurrent
-    recurrent
-)
-
-TOKENIZER_PATHS=(
-# TODO: add tokenizer paths
-)
-
-ARCH=${ARCH_CONFIGS[$SLURM_ARRAY_TASK_ID]}
-MODE=${INPUT_MODES[$SLURM_ARRAY_TASK_ID]}
-TOKENIZER_PATH=${TOKENIZER_PATHS[$SLURM_ARRAY_TASK_ID]}
-
-OUTPUT_DIR=./results/experiments/pretrain_think/${ARCH}_${MODE}_${MAX_REASONING_STEPS}
-
-echo "=== Array task $SLURM_ARRAY_TASK_ID: arch=$ARCH  input_mode=$MODE ==="
-
-
-
+# -------------------Basic Configuration-------------------
 export TOKENIZERS_PARALLELISM=false
 
 NUM_GPUS=2
-MASTER_PORT=$((29500 + SLURM_ARRAY_TASK_ID))
+MASTER_PORT=29500
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TOKENIZER_PATH="$PROJECT_DIR/src/splr/core/tokenizers/gpt2"
+
+ARCH=splr_trm_gpt
+MODE=recurrent
+OUTPUT_DIR="$PROJECT_DIR/results/experiments/pretrain_think/${ARCH}_${MODE}_${MAX_REASONING_STEPS}"
+
+# ---------------(To be set) Training Configuration---------------
+
+# Please set the MAX_REASONING_STEPS, LOAD_CHECKPOINT, and NUM_EPOCHS for the following curriculum learning steps.
+# Then pass those as arguments to the training script.
+MAX_REASONING_STEPS=2
+LOAD_CHECKPOINT=$OUTPUT_DIR/checkpoints/step_<step_number>.pt
+NUM_EPOCHS=100
+
+# -------------------------------------------------------------
 
 torchrun \
     --standalone \
@@ -58,6 +35,9 @@ torchrun \
     input_mode=$MODE \
     tokenizer_path=$TOKENIZER_PATH \
     output_dir=$OUTPUT_DIR \
-    run_name=${ARCH}_${MODE}_${MAX_REASONING_STEPS}
+    run_name=${ARCH}_${MODE}_${MAX_REASONING_STEPS} \
+    arch.max_reasoning_steps=$MAX_REASONING_STEPS \
+    # load_checkpoint=$LOAD_CHECKPOINT \
+    # num_epochs=$NUM_EPOCHS
 
 echo "Training completed!"

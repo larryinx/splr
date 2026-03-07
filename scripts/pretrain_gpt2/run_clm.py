@@ -106,6 +106,21 @@ class ModelArguments:
             "choices": ["auto", "bfloat16", "float16", "float32"],
         },
     )
+    init_embeddings_from: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Initialize wte (token embedding) weights from a pretrained model "
+                "(e.g. 'openai-community/gpt2'). Only used when training from scratch "
+                "(i.e. --model_name_or_path is NOT set). The lm_head is tied to wte so "
+                "both are initialized. All other weights remain randomly initialized."
+            )
+        },
+    )
+    freeze_embeddings: bool = field(
+        default=False,
+        metadata={"help": "Freeze the token embedding (wte) weights during training. Only effective with --init_embeddings_from."},
+    )
 
     def __post_init__(self):
         if self.config_overrides is not None and (self.config_name is not None or self.model_name_or_path is not None):
@@ -331,6 +346,38 @@ def main():
         model = AutoModelForCausalLM.from_config(config, trust_remote_code=model_args.trust_remote_code)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params / 2**20:.2f}M params")
+
+    # Optionally initialize embeddings from a pretrained model
+    if model_args.init_embeddings_from and not model_args.model_name_or_path:
+        logger.info(f"Initializing wte from pretrained model: {model_args.init_embeddings_from}")
+        pretrained = AutoModelForCausalLM.from_pretrained(
+            model_args.init_embeddings_from,
+            cache_dir=model_args.cache_dir,
+            token=model_args.token,
+        )
+        pretrained_wte = pretrained.get_input_embeddings().weight.data
+        model_wte = model.get_input_embeddings().weight.data
+        # Copy the overlapping portion (vocab sizes may differ)
+        copy_size = min(pretrained_wte.shape[0], model_wte.shape[0])
+        assert pretrained_wte.shape[1] == model_wte.shape[1], (
+            f"Embedding dim mismatch: pretrained={pretrained_wte.shape[1]}, "
+            f"model={model_wte.shape[1]}. Use a config with matching n_embd."
+        )
+        model_wte[:copy_size] = pretrained_wte[:copy_size]
+        # lm_head is tied to wte in GPT-2, so it's already updated.
+        # If not tied, also copy lm_head explicitly.
+        if not model.config.tie_word_embeddings:
+            pretrained_lm_head = pretrained.get_output_embeddings().weight.data
+            model_lm_head = model.get_output_embeddings().weight.data
+            copy_size_lm = min(pretrained_lm_head.shape[0], model_lm_head.shape[0])
+            model_lm_head[:copy_size_lm] = pretrained_lm_head[:copy_size_lm]
+            logger.info(f"Copied lm_head weights (not tied): {copy_size_lm} tokens")
+        del pretrained
+        logger.info(f"Copied pretrained wte for {copy_size} / {model_wte.shape[0]} tokens")
+
+        if model_args.freeze_embeddings:
+            model.get_input_embeddings().weight.requires_grad = False
+            logger.info("Froze wte (token embedding) weights")
 
     embedding_size = model.get_input_embeddings().weight.shape[0]
     if len(tokenizer) > embedding_size:

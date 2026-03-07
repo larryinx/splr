@@ -1,12 +1,25 @@
 #!/bin/bash
 set -euo pipefail
 
+# ── Dataset variant: wo_cot | cot (default) ──────────────────────
+VARIANT="${1:-cot}"
+shift 2>/dev/null || true
+CHECKPOINT_STEP="${1:-6000}"
+shift 2>/dev/null || true
+
+case "$VARIANT" in
+    wo_cot) NAME_SUFFIX="_wo_cot" ;;
+    cot)    NAME_SUFFIX="" ;;
+    *)  echo "Usage: $0 [wo_cot|cot] [checkpoint_step] [extra args...]"; exit 1 ;;
+esac
+
 # ── Paths ─────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-MODEL_PATH="${1:-$PROJECT_DIR/results/pretrain_gpt2_wo_cot/checkpoint-$CHECKPOINT_STEP}"
-OUTPUT_DIR="$PROJECT_DIR/results/pretrain_gpt2_wo_cot/eval-$CHECKPOINT_STEP"
+RESULT_DIR="$PROJECT_DIR/results/pretrain_gpt2${NAME_SUFFIX}"
+MODEL_PATH="$RESULT_DIR/checkpoint-$CHECKPOINT_STEP"
+OUTPUT_DIR="$RESULT_DIR/eval-$CHECKPOINT_STEP"
 
 export TOKENIZERS_PARALLELISM=false
 

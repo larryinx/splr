@@ -1,0 +1,49 @@
+defaults:
+  - arch: splr
+  - _self_
+
+hydra:
+  output_subdir: null
+
+eval_only: true
+load_checkpoint: null  # must be specified via CLI override
+
+# Tokenizer path
+tokenizer_path: <path to the tokenizer>
+
+# Input mode: "recurrent" or "autoregressive"
+input_mode: recurrent
+
+# Benchmark evaluation configs
+eval_configs:
+  - ./configs/eval/halt_2_tool.yaml
+  - ./configs/eval/halt_4_tool.yaml
+  # - ./configs/eval/halt_8_tool.yaml
+  - ./configs/eval/halt_tool.yaml
+  # - ./configs/eval/no_halt_2_tool.yaml
+  # - ./configs/eval/no_halt_4_tool.yaml
+  # - ./configs/eval/no_halt_8_tool.yaml
+  # - ./configs/eval/no_halt_16_tool.yaml
+
+# Data paths (not used in eval_only but required by TrainConfig)
+dataset_name: gsm8k-tool
+train_file:
+  - ./datasets/gsm8k/tool_normalized/train.json
+
+# Distributed training
+use_ddp: true
+local_rank: -1
+
+# Load from EMA weights (training evaluations used EMA model)
+load_checkpoint_from_ema: true
+
+# Save detailed evaluation results (step-by-step traces) to JSON
+save_eval_results: false
+eval_results_dir: null  # Defaults to output_dir/eval_results if null
+
+# Wandb
+project_name: <wandb project name>
+run_name: <wandb run name>
+
+# Misc
+seed: 0

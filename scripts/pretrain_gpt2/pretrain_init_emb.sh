@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=pretrain_gpt2
+#SBATCH --job-name=pretrain_gpt2_init_emb
 #SBATCH --account=rrg-pynie
 #SBATCH --time=04:59:00
 #SBATCH --nodes=1
@@ -40,7 +40,10 @@ TRAIN_FILE="$DATA_DIR/train.txt"
 VALID_FILE="$DATA_DIR/valid.txt"
 TEST_FILE="$DATA_DIR/test.txt"
 
-OUTPUT_DIR="$PROJECT_DIR/results/pretrain_gpt2${NAME_SUFFIX}"
+OUTPUT_DIR="$PROJECT_DIR/results/pretrain_gpt2${NAME_SUFFIX}_init_emb"
+
+# ── Pretrained model to take embeddings from ─────────────────────
+INIT_EMB_FROM="openai-community/gpt2"
 
 # ── Combine validation files ─────────────────────────────────────
 VAL_COMBINED="$DATA_DIR/val_combined.txt"
@@ -50,9 +53,11 @@ echo "Combined validation file: $(wc -l < "$VAL_COMBINED") lines"
 
 # ── Training config ──────────────────────────────────────────────
 NUM_GPUS=2
-MASTER_PORT=${MASTER_PORT:-29500}
+# MASTER_PORT=${MASTER_PORT:-29500}
+MASTER_PORT=29600
 
 export TOKENIZERS_PARALLELISM=false
+export CUDA_VISIBLE_DEVICES=2,3
 
 module load cuda/12.6
 
@@ -67,6 +72,7 @@ torchrun \
     "$SCRIPT_DIR/run_clm.py" \
     --model_type gpt2 \
     --tokenizer_name openai-community/gpt2 \
+    --init_embeddings_from "$INIT_EMB_FROM" \
     --train_file "$TRAIN_FILE" \
     --validation_file "$VAL_COMBINED" \
     --do_train \
@@ -93,7 +99,7 @@ torchrun \
     --output_dir "$OUTPUT_DIR" \
     --overwrite_output_dir \
     --report_to wandb \
-    --run_name "pretrain_gpt2${NAME_SUFFIX}" \
+    --run_name "pretrain_gpt2${NAME_SUFFIX}_init_emb" \
     "$@"
 
 echo "Training completed!"

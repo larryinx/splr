@@ -17,6 +17,8 @@ configs/*
 !configs/arch/splr.yaml
 !configs/cfg_pretrain.yaml
 !configs/cfg_pretrain_tool.yaml
+!configs/cfg_eval_think.yaml
+!configs/cfg_eval_tool.yaml
 
 
 **/ignore_files/
