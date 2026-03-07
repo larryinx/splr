@@ -22,6 +22,8 @@ EVAL_RESULTS_DIR="$PROJECT_DIR/results/experiments/eval_results_think/${ARCH}_${
 
 # -------------------------------------------------------------
 
+cd $PROJECT_DIR
+source .venv/bin/activate
 
 torchrun \
     --standalone \

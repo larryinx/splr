@@ -24,6 +24,9 @@ NUM_EPOCHS=100
 
 # -------------------------------------------------------------
 
+cd $PROJECT_DIR
+source .venv/bin/activate
+
 torchrun \
     --standalone \
     --nnodes=1 \
